@@ -1,0 +1,93 @@
+<!-- habil/templates/habil/sensor_map.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Map Column -->
+        <div class="col-md-8 p-0">
+            <div id="sensor-map" style="height: 100vh;"></div>
+        </div>
+        
+        <!-- Sensor List Column -->
+        <div class="col-md-4">
+            <div class="sensor-sidebar p-3">
+                <h4 class="mb-4">Active Sensors</h4>
+                <div class="list-group">
+                    {% for data in sensor_data %}
+                    <a href="{% url 'habil:sensor_detail' data.sensor.id %}" 
+                       class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ data.sensor.name }}</strong>
+                            <div class="text-muted small">{{ data.sensor.location }}</div>
+                        </div>
+                        <span class="badge aqi-{{ data.aqi_category|lower }} rounded-pill">
+                            AQI: {{ data.latest_aqi|default:"N/A" }}
+                        </span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Leaflet CSS & JS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+<style>
+    .aqi-good { background-color: #00e400; color: white; }
+    .aqi-moderate { background-color: #ffff00; }
+    .aqi-unhealthy { background-color: #ff7e00; color: white; }
+    .aqi-very-unhealthy { background-color: #ff0000; color: white; }
+    .aqi-hazardous { background-color: #8f3f97; color: white; }
+    
+    .sensor-sidebar {
+        height: 100vh;
+        overflow-y: auto;
+        background: #f8f9fa;
+        border-left: 1px solid #dee2e6;
+    }
+</style>
+
+<script>
+    // Initialize map
+    var map = L.map('sensor-map').setView([{{ sensor_data.0.sensor.latitude|default:0 }}, 
+                                         {{ sensor_data.0.sensor.longitude|default:0 }}], 13);
+    
+    // Add tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+    
+    // Add markers for each sensor
+    {% for data in sensor_data %}
+    var marker = L.marker([{{ data.sensor.latitude }}, {{ data.sensor.longitude }}]).addTo(map)
+        .bindPopup(`
+            <b>{{ data.sensor.name }}</b><br>
+            Location: {{ data.sensor.location }}<br>
+            AQI: ${ getAqiBadge({{ data.latest_aqi|default:0 }}) }<br>
+            <a href="{% url 'habil:sensor_detail' data.sensor.id %}" class="btn btn-sm btn-primary mt-2">
+                View Details
+            </a>
+        `);
+    {% endfor %}
+    
+    // Fit map to markers if we have sensors
+    {% if sensor_data %}
+    var markers = L.featureGroup(Array.from(map._layers).filter(l => l instanceof L.Marker));
+    if (markers.getLayers().length > 0) {
+        map.fitBounds(markers.getBounds().pad(0.1));
+    }
+    {% endif %}
+    
+    function getAqiBadge(aqi) {
+        if (!aqi) return 'N/A';
+        if (aqi <= 50) return `<span class="badge aqi-good">Good (${aqi})</span>`;
+        if (aqi <= 100) return `<span class="badge aqi-moderate">Moderate (${aqi})</span>`;
+        if (aqi <= 150) return `<span class="badge aqi-unhealthy">Unhealthy (${aqi})</span>`;
+        return `<span class="badge aqi-hazardous">Hazardous (${aqi})</span>`;
+    }
+</script>
+{% endblock %}

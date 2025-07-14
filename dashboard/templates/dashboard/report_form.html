@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container" style="max-width: 500px; margin-top: 60px;">
+  <div class="card shadow-sm border-0">
+    <div class="card-body">
+      <h3 class="card-title mb-4 text-center text-primary">Generate Pollution Report</h3>
+      <form method="get" action="{% url 'dashboard:download_report' %}">
+        <div class="mb-3">
+          <label for="sensor_id" class="form-label">Sensor</label>
+          <select class="form-select" name="sensor_id" id="sensor_id" required>
+            <option value="">Select sensor</option>
+            {% for sensor in sensors %}
+              <option value="{{ sensor.id }}">{{ sensor.name }} ({{ sensor.location }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label for="param" class="form-label">Pollutant Parameters</label>
+          <select class="form-select" name="param" id="param" multiple required>
+            <option value="pm2_5">PM2.5</option>
+            <option value="pm10">PM10</option>
+            <option value="co">CO</option>
+            <option value="no2">NO₂</option>
+            <option value="nh3">NH₃</option>
+            <option value="ch4">CH₄</option>
+          </select>
+          <small class="text-muted">Hold Ctrl (Windows) or Cmd (Mac) to select multiple.</small>
+        </div>
+        <div class="mb-3">
+          <label for="from" class="form-label">From</label>
+          <input type="date" class="form-control" name="from" id="from" required>
+        </div>
+        <div class="mb-3">
+          <label for="to" class="form-label">To</label>
+          <input type="date" class="form-control" name="to" id="to" required>
+        </div>
+        <div class="d-grid">
+          <button type="submit" class="btn btn-primary btn-lg">Download PDF Report</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

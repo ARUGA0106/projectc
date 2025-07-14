@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container" style="padding-top: 80px; max-width: 700px;">
+
+  <!-- Sensor List & Status (on top) -->
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      <h4 class="card-title mb-3 text-center text-secondary">Sensor List & Status</h4>
+      <table class="table table-bordered table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Location</th>
+            <th>Active</th>
+            <th>Installation Date</th>
+            <th>Description</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sensor in sensors %}
+          <tr>
+            <td>{{ sensor.name }}</td>
+            <td>{{ sensor.location }}</td>
+            <td>
+              {% if sensor.is_active %}
+                <span class="badge bg-success">Active</span>
+              {% else %}
+                <span class="badge bg-secondary">Inactive</span>
+              {% endif %}
+            </td>
+            <td>{{ sensor.installation_date }}</td>
+            <td>{{ sensor.description|default:"-" }}</td>
+            <td>
+              <a href="{% url 'dashboard:toggle_sensor_status' sensor.id %}" class="btn btn-sm {% if sensor.is_active %}btn-warning{% else %}btn-success{% endif %}">
+                {% if sensor.is_active %}Deactivate{% else %}Activate{% endif %}
+              </a>
+              {% if user.is_superuser or user.is_staff %}
+              <form method="post" action="{% url 'dashboard:delete_sensor' sensor.id %}" style="display:inline;" onsubmit="return confirm('Delete this sensor?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger btn-sm ms-1">Delete</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted">No sensors found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Add New Sensor Form (below) -->
+  <div class="card shadow-sm border-0">
+    <div class="card-body">
+      <h3 class="card-title mb-4 text-center text-primary">Add New Sensor</h3>
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="d-grid mt-3">
+          <button type="submit" class="btn btn-success btn-lg">Create Sensor</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

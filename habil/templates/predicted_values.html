@@ -1,0 +1,341 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid py-5" style="background-color: #f8f9fa;"> <!-- Light gray background -->
+    <div class="container">
+        <h2 class="text-primary mb-4" style="font-weight: bold;">Predicted Values</h2>
+        <div class="row">
+            <!-- Left Column: Selection -->
+            <div class="col-md-4">
+                <!-- Sensor Selection -->
+                <div class="mb-4">
+                    <h5 style="color: #007bff; font-weight: bold;">Select Sensor</h5>
+                    <select id="sensor-select" class="form-select">
+                        <option value="" selected disabled>Select a sensor</option>
+                        {% for sensor in sensor_predictions %}
+                        <option value="{{ forloop.counter }}">{{ sensor.details.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Parameter Selection -->
+                <div class="mb-4">
+                    <h5 style="color: #28a745; font-weight: bold;">Select Parameters</h5>
+                    <select id="parameter-select" class="form-select" multiple>
+                        <option value="temperature">Temperature</option>
+                        <option value="humidity">Humidity</option>
+                        <option value="pm2_5">PM2.5</option>
+                        <option value="pm10">PM10</option>
+                        <option value="nh3">NH3</option>
+                        <option value="ch4">CH4</option>
+                        <option value="co">CO</option>
+                    </select>
+                    <small class="text-muted">Hold Ctrl (Windows) or Cmd (Mac) to select multiple parameters.</small>
+                </div>
+
+                <!-- Time Filter -->
+                <div class="mb-4">
+                    <h5 style="color: #dc3545; font-weight: bold;">Filter Time</h5>
+                    <div class="input-group">
+                        <input type="datetime-local" id="start-time" class="form-control">
+                        <span class="input-group-text">to</span>
+                        <input type="datetime-local" id="end-time" class="form-control">
+                    </div>
+                    <button id="filter-btn" class="btn btn-danger mt-2">Apply Filter</button>
+                </div>
+
+                <!-- Export Button -->
+                <div class="mb-4">
+                    <div class="input-group">
+                        <select id="export-format" class="form-select" style="max-width: 120px;">
+                            <option value="csv">CSV</option>
+                            <option value="excel">Excel</option>
+                        </select>
+                        <button id="export-btn" class="btn btn-success" style="width: 100%;">
+                            <i class="bi bi-file-earmark-spreadsheet"></i> Export Data
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Chart -->
+            <div class="col-md-8">
+                <div style="background-color: #ffffff; border: 1px solid #dee2e6; border-radius: 5px; padding: 20px;">
+                    <!-- Dynamic Title -->
+                    <h5 id="chart-title" class="text-center mb-4" style="font-weight: bold;">The Predicted Value for the Next 12 Hours</h5>
+                    <canvas id="sensor-chart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- JavaScript for Chart -->
+        <script>
+            var ctx = document.getElementById('sensor-chart').getContext('2d');
+            var chartTitle = document.getElementById('chart-title'); // Reference to the title element
+
+            // Data for all sensors
+            var sensors = [
+                {% for sensor in sensor_predictions %}
+                {
+                    name: "{{ sensor.details.name }}",
+                    dates: {{ sensor.predictions.dates|safe }},
+                    temperature: {{ sensor.predictions.temperature|safe }},
+                    humidity: {{ sensor.predictions.humidity|safe }},
+                    pm2_5: {{ sensor.predictions.pm2_5|safe }},
+                    pm10: {{ sensor.predictions.pm10|safe }},
+                    nh3: {{ sensor.predictions.nh3|safe }},
+                    ch4: {{ sensor.predictions.ch4|safe }},
+                    co: {{ sensor.predictions.co|safe }}
+                },
+                {% endfor %}
+            ];
+
+            // Create the chart with no visible lines initially
+            var chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { 
+                            label: "Temperature", 
+                            data: [], 
+                            borderColor: "red", 
+                            borderWidth: 1,  // Reduced line thickness
+                            tension: 0.4, 
+                            fill: false,
+                            hidden: true // Hidden by default
+                        },
+                        { 
+                            label: "Humidity", 
+                            data: [], 
+                            borderColor: "blue", 
+                            borderWidth: 1,  // Reduced line thickness
+                            tension: 0.4, 
+                            fill: false,
+                            hidden: true // Hidden by default
+                        },
+                        { 
+                            label: "PM2.5", 
+                            data: [], 
+                            borderColor: "green", 
+                            borderWidth: 1,  // Reduced line thickness
+                            tension: 0.4, 
+                            fill: false,
+                            hidden: true // Hidden by default
+                        },
+                        { 
+                            label: "PM10", 
+                            data: [], 
+                            borderColor: "orange", 
+                            borderWidth: 1,  // Reduced line thickness
+                            tension: 0.4, 
+                            fill: false,
+                            hidden: true // Hidden by default
+                        },
+                        { 
+                            label: "NH3", 
+                            data: [], 
+                            borderColor: "purple", 
+                            borderWidth: 1,  // Reduced line thickness
+                            tension: 0.4, 
+                            fill: false,
+                            hidden: true // Hidden by default
+                        },
+                        { 
+                            label: "CH4", 
+                            data: [], 
+                            borderColor: "pink", 
+                            borderWidth: 1,  // Reduced line thickness
+                            tension: 0.4, 
+                            fill: false,
+                            hidden: true // Hidden by default
+                        },
+                        { 
+                            label: "CO", 
+                            data: [], 
+                            borderColor: "brown", 
+                            borderWidth: 1,  // Reduced line thickness
+                            tension: 0.4, 
+                            fill: false,
+                            hidden: true // Hidden by default
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }, // Hide legend
+                        tooltip: {
+                            enabled: true,
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Value'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Track selected sensor and parameters
+            let selectedSensorIndex = null;
+            let selectedParameters = [];
+
+            // Sensor selection
+            document.getElementById('sensor-select').addEventListener('change', function (e) {
+                selectedSensorIndex = e.target.value - 1;
+                var selectedSensor = sensors[selectedSensorIndex];
+
+                // Update chart labels
+                chart.data.labels = selectedSensor.dates;
+
+                // Reset all datasets
+                chart.data.datasets.forEach(function (dataset) {
+                    dataset.data = [];
+                    dataset.hidden = true;
+                });
+
+                // Update the chart title
+                chartTitle.textContent = `The Predicted Air Condition for the Next 12 Hours for ${selectedSensor.name}`;
+
+                chart.update();
+            });
+
+            // Parameter selection
+            document.getElementById('parameter-select').addEventListener('change', function (e) {
+                selectedParameters = Array.from(e.target.selectedOptions).map(option => option.value);
+                updateChartWithFilters();
+            });
+
+            // Time filtering
+            document.getElementById('filter-btn').addEventListener('click', function () {
+                updateChartWithFilters();
+            });
+
+            // Export data
+            document.getElementById('export-btn').addEventListener('click', function () {
+                if (selectedSensorIndex === null || selectedParameters.length === 0) return;
+                var selectedSensor = sensors[selectedSensorIndex];
+                var startTime = document.getElementById('start-time').value;
+                var endTime = document.getElementById('end-time').value;
+                var exportFormat = document.getElementById('export-format').value;
+
+                // Filter indexes
+                var filteredIndexes = selectedSensor.dates.map((ts, idx) => {
+                    let tsDate = new Date(ts);
+                    let afterStart = !startTime || tsDate >= new Date(startTime);
+                    let beforeEnd = !endTime || tsDate <= new Date(endTime);
+                    return afterStart && beforeEnd ? idx : null;
+                }).filter(idx => idx !== null);
+
+                // Prepare data array
+                let dataArr = [["Time"].concat(selectedParameters.map(formatPollutantLabel))];
+                filteredIndexes.forEach(idx => {
+                    let row = [selectedSensor.dates[idx]];
+                    selectedParameters.forEach(param => {
+                        row.push(selectedSensor[param][idx]);
+                    });
+                    dataArr.push(row);
+                });
+
+                if (exportFormat === "csv") {
+                    // CSV Export
+                    let csvContent = "data:text/csv;charset=utf-8," + dataArr.map(e => e.join(",")).join("\n");
+                    var encodedUri = encodeURI(csvContent);
+                    var link = document.createElement("a");
+                    link.setAttribute("href", encodedUri);
+                    link.setAttribute("download", `${selectedSensor.name}_predicted_data.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } else {
+                    // Excel Export using SheetJS
+                    var ws = XLSX.utils.aoa_to_sheet(dataArr);
+                    var wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "Predicted Data");
+                    XLSX.writeFile(wb, `${selectedSensor.name}_predicted_data.xlsx`);
+                }
+            });
+
+            // Helper to update chart with filters
+            function updateChartWithFilters() {
+                if (selectedSensorIndex === null || selectedParameters.length === 0) return;
+                var selectedSensor = sensors[selectedSensorIndex];
+
+                var startTime = document.getElementById('start-time').value;
+                var endTime = document.getElementById('end-time').value;
+
+                // Filter indexes
+                var filteredIndexes = selectedSensor.dates.map((ts, idx) => {
+                    let tsDate = new Date(ts);
+                    let afterStart = !startTime || tsDate >= new Date(startTime);
+                    let beforeEnd = !endTime || tsDate <= new Date(endTime);
+                    return afterStart && beforeEnd ? idx : null;
+                }).filter(idx => idx !== null);
+
+                // Update chart labels
+                chart.data.labels = filteredIndexes.map(idx => selectedSensor.dates[idx]);
+
+                // Hide all datasets
+                chart.data.datasets.forEach(function (dataset) {
+                    dataset.data = [];
+                    dataset.hidden = true;
+                });
+
+                // Show selected datasets
+                selectedParameters.forEach(function (parameter) {
+                    var dataset = chart.data.datasets.find(function (d) {
+                        return d.label.toLowerCase() === parameter;
+                    });
+                    if (dataset) {
+                        dataset.data = filteredIndexes.map(idx => selectedSensor[parameter][idx]);
+                        dataset.hidden = false;
+                    }
+                });
+
+                updateChartTitle(); // Update the title after filtering
+                chart.update();
+            }
+
+            // Helper to format pollutant label
+            function formatPollutantLabel(label) {
+                switch(label) {
+                    case "pm2_5": return "PM2.5";
+                    case "pm10": return "PM10";
+                    case "nh3": return "NH3";
+                    case "ch4": return "CH4";
+                    case "co": return "CO";
+                    case "humidity": return "Humidity";
+                    case "temperature": return "Temperature";
+                    default: return label.charAt(0).toUpperCase() + label.slice(1);
+                }
+            }
+
+            // Update chart title based on selected parameters
+            function updateChartTitle() {
+                if (selectedParameters.length === 0) {
+                    chartTitle.textContent = "Select a pollutant to view its predicted trend";
+                } else if (selectedParameters.length === 1) {
+                    chartTitle.textContent = `The predicted trend for ${formatPollutantLabel(selectedParameters[0])} for the next 6 hours`;
+                } else {
+                    chartTitle.textContent = `The predicted trend for ${selectedParameters.map(formatPollutantLabel).join(", ")} for the next 6 hours`;
+                }
+            }
+        </script>
+        <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    </div>
+</div>
+{% endblock %}

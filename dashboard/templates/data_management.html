@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% load dashboard_extras %}
+{% block title %}Data Management - Tanair{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h2 class="fw-bold text-info mb-4">Data Management</h2>
+  <form method="get" class="row g-3 mb-4">
+    <div class="col-md-3">
+      <label for="sensor" class="form-label">Sensor</label>
+      <select id="sensor" name="sensor" class="form-select">
+        <option value="">All Sensors</option>
+        {% for sensor in sensors %}
+          <option value="{{ sensor.id }}" {% if request.GET.sensor == sensor.id|stringformat:"s" %}selected{% endif %}>{{ sensor.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="pollutant" class="form-label">Pollutant</label>
+      <select id="pollutant" name="pollutant" class="form-select">
+        <option value="">All Pollutants</option>
+        {% for pollutant in pollutants %}
+          <option value="{{ pollutant }}" {% if request.GET.pollutant == pollutant %}selected{% endif %}>{{ pollutant }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="start" class="form-label">Start Time</label>
+      <input type="datetime-local" id="start" name="start" class="form-control" value="{{ request.GET.start }}">
+    </div>
+    <div class="col-md-3">
+      <label for="end" class="form-label">End Time</label>
+      <input type="datetime-local" id="end" name="end" class="form-control" value="{{ request.GET.end }}">
+    </div>
+    <div class="col-12 d-flex gap-2">
+      <button type="submit" class="btn btn-info">Filter</button>
+      <a href="{% url 'dashboard:data_management' %}" class="btn btn-secondary">Reset</a>
+      <button type="submit" name="export" value="csv" class="btn btn-success">Export CSV</button>
+      <button type="submit" name="export" value="json" class="btn btn-warning">Export JSON</button>
+      <!--<button type="submit" name="export" value="excel" class="btn btn-primary">Export Excel</button>-->
+    </div>
+  </form>
+  {% if request.GET.sensor %}
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover">
+        <thead class="table-light">
+          <tr>
+            <th>Date/Time</th>
+            <th>Sensor</th>
+            {% for pollutant in pollutants %}
+              <th>{{ pollutant }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in data %}
+          <tr>
+            <td>{{ row.timestamp }}</td>
+            <td>{{ row.sensor.name }}</td>
+            {% for key in pollutant_keys %}
+              {% with value=row|get_item:key %}
+                {% if value|stringformat:"f"|floatval > 200 %}
+                  <td class="bg-danger text-white fw-bold">{{ value }}</td>
+                {% elif value|stringformat:"f"|floatval > 100 %}
+                  <td class="bg-warning text-dark fw-bold">{{ value }}</td>
+                {% elif value|stringformat:"f"|floatval > 50 %}
+                  <td class="bg-info text-dark">{{ value }}</td>
+                {% else %}
+                  <td>{{ value }}</td>
+                {% endif %}
+              {% endwith %}
+            {% endfor %}
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="{{ pollutants|length|add:'2' }}">No data found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

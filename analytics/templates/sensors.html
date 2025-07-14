@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container my-4 mt-5 pt-4">
+    <h2 class="mb-4">Sensor Health & Leaderboard</h2>
+
+    <!-- Sensor Health Cards -->
+    <div class="row mb-4">
+        {% for sensor, h, color in sensor_health %}
+        <div class="col-md-4 mb-3">
+            <div class="card shadow border-0 {{ color }}">
+                <div class="card-body text-white">
+                    <h5 class="card-title">{{ sensor.name }}</h5>
+                    <p class="mb-1"><b>Location:</b> {{ sensor.location }}</p>
+                    <p class="mb-1"><b>Uptime:</b> {{ h.uptime }}</p>
+                    <p class="mb-1"><b>Last Active:</b> {{ h.last_active|date:"Y-m-d H:i" }}</p>
+                    <p class="mb-1"><b>Battery:</b>
+                        <i class="bi bi-battery{% if h.battery > 75 %}-full{% elif h.battery > 40 %}-half{% else %}-empty{% endif %}"></i>
+                        <span class="badge bg-light text-dark ms-1">
+                            {{ h.battery|default:"N/A" }}%
+                        </span>
+                    </p>
+                    <p class="mb-1"><b>Signal:</b>
+                        <i class="bi bi-reception-4"></i>
+                        <span class="badge bg-light text-dark ms-1">
+                            {{ h.signal|default:"N/A" }}%
+                        </span>
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Leaderboard Table -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Leaderboard (Top 5 by AQI)</h5>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Sensor</th>
+                        <th>Avg AQI</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in leaderboard %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ entry.sensor_id }}</td>
+                        <td>{{ entry.avg_aqi|floatformat:1 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

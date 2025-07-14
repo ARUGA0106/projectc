@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">Air Quality Index (AQI) Results</h2>
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>Location</th>
+                <th>Pollutant</th>
+                <th>Concentration</th>
+                <th>AQI Value</th>
+                <th>Category</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in aqi_results %}
+            <tr style="background-color: {{ row.color_code }};">
+                <td>{{ row.timestamp }}</td>
+                <td>{{ row.location }}</td>
+                <td>{{ row.pollutant|upper }}</td>
+                <td>{{ row.concentration }}</td>
+                <td>{{ row.aqi_value }}</td>
+                <td>{{ row.category }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

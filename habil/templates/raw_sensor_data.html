@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-5" style="background-color: #f8f9fa;"> <!-- Light gray background -->
+    <div class="container">
+        <h2 class="text-primary mb-4" style="font-weight: bold;">Sensor Data</h2>
+        <!-- Filter Row -->
+        <div class="row mb-4 align-items-start">
+            <div class="col-md-3">
+                <label for="sensor-select" class="form-label">Sensor</label>
+                <select id="sensor-select" class="form-select">
+                    <option value="" selected disabled>Select a sensor</option>
+                    {% for sensor in sensor_data %}
+                    <option value="{{ forloop.counter }}">{{ sensor.details.name }}</option>
+                    {% endfor %}
+                </select>
+                <label for="parameter-select" class="form-label mt-3">Pollutant</label>
+                <select id="parameter-select" class="form-select">
+                    <option value="" selected disabled>Select a pollutant</option>
+                    <option value="temperature">Temperature</option>
+                    <option value="humidity">Humidity</option>
+                    <option value="pm2_5">PM2.5</option>
+                    <option value="pm10">PM10</option>
+                    <option value="nh3">NH3</option>
+                    <option value="ch4">CH4</option>
+                    <option value="co">CO</option>
+                </select>
+                <label for="start-time" class="form-label mt-3">Start Time</label>
+                <input type="datetime-local" id="start-time" class="form-control mb-2">
+                <label for="end-time" class="form-label">End Time</label>
+                <input type="datetime-local" id="end-time" class="form-control mb-2">
+                <button id="filter-btn" class="btn btn-primary mt-2 w-100">Filter</button>
+                <div class="input-group mt-2">
+                    <select id="export-format" class="form-select" style="max-width: 120px;">
+                        <option value="csv">CSV</option>
+                        <option value="excel">Excel</option>
+                    </select>
+                    <button id="export-btn" class="btn btn-success w-100">
+                        Export Data
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-9">
+                <!-- Chart Title -->
+                <h5 id="chart-title" class="mb-3" style="font-weight: bold;">Select a pollutant to view its trend</h5>
+                <!-- Full Width Chart -->
+                <div style="background-color: #ffffff; border: 1px solid #dee2e6; border-radius: 5px; padding: 20px;">
+                    <canvas id="sensor-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add this in the <head> or before your script for SheetJS Excel export support -->
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<!-- JavaScript for Chart -->
+<script>
+    var ctx = document.getElementById('sensor-chart').getContext('2d');
+    var chartTitle = document.getElementById('chart-title'); // Reference to the title element
+
+    // Data for all sensors
+    var sensors = [
+        {% for sensor in sensor_data %}
+        {
+            name: "{{ sensor.details.name }}",
+            timestamps: {{ sensor.readings.timestamps|safe }},
+            temperature: {{ sensor.readings.temperature|safe }},
+            humidity: {{ sensor.readings.humidity|safe }},
+            pm2_5: {{ sensor.readings.pm2_5|safe }},
+            pm10: {{ sensor.readings.pm10|safe }},
+            nh3: {{ sensor.readings.nh3|safe }},
+            ch4: {{ sensor.readings.ch4|safe }},
+            co: {{ sensor.readings.co|safe }}
+        },
+        {% endfor %}
+    ];
+
+    // Create the chart with no visible lines initially
+    var chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                { 
+                    label: "Temperature", 
+                    data: [], 
+                    borderColor: "red", 
+                    borderWidth: 1,  // Reduced line thickness
+                    tension: 0.4, 
+                    fill: false,
+                    hidden: true // Hidden by default
+                },
+                { 
+                    label: "Humidity", 
+                    data: [], 
+                    borderColor: "blue", 
+                    borderWidth: 1,  // Reduced line thickness
+                    tension: 0.4, 
+                    fill: false,
+                    hidden: true // Hidden by default
+                },
+                { 
+                    label: "PM2.5", 
+                    data: [], 
+                    borderColor: "green", 
+                    borderWidth: 1,  // Reduced line thickness
+                    tension: 0.4, 
+                    fill: false,
+                    hidden: true // Hidden by default
+                },
+                { 
+                    label: "PM10", 
+                    data: [], 
+                    borderColor: "purple", 
+                    borderWidth: 1,  // Reduced line thickness
+                    tension: 0.4, 
+                    fill: false,
+                    hidden: true // Hidden by default
+                },
+                { 
+                    label: "NH3", 
+                    data: [], 
+                    borderColor: "brown", 
+                    borderWidth: 1,  // Reduced line thickness
+                    tension: 0.4, 
+                    fill: false,
+                    hidden: true // Hidden by default
+                },
+                { 
+                    label: "CH4", 
+                    data: [], 
+                    borderColor: "pink", 
+                    borderWidth: 1,  // Reduced line thickness
+                    tension: 0.4, 
+                    fill: false,
+                    hidden: true // Hidden by default
+                },
+                { 
+                    label: "CO", 
+                    data: [], 
+                    borderColor: "gray", 
+                    borderWidth: 1,  // Reduced line thickness
+                    tension: 0.4, 
+                    fill: false,
+                    hidden: true // Hidden by default
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false }, // <--- Hide legend
+                tooltip: {
+                    enabled: true,
+                    mode: 'index',
+                    intersect: false
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Time'
+                    }
+                },
+                y: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Value'
+                    }
+                }
+            }
+        }
+    });
+
+    // Helper to format pollutant label
+    function formatPollutantLabel(label) {
+        switch(label) {
+            case "pm2_5": return "PM2.5";
+            case "pm10": return "PM10";
+            case "nh3": return "NH3";
+            case "ch4": return "CH4";
+            case "co": return "CO";
+            case "humidity": return "Humidity";
+            case "temperature": return "Temperature";
+            default: return label.charAt(0).toUpperCase() + label.slice(1);
+        }
+    }
+
+    // Track selected parameter
+    let selectedParameter = null;
+    let selectedSensorIndex = null;
+
+    // Handle sensor selection
+    document.getElementById('sensor-select').addEventListener('change', function (e) {
+        selectedSensorIndex = e.target.value - 1;
+        var selectedSensor = sensors[selectedSensorIndex];
+
+        // Update chart labels
+        chart.data.labels = selectedSensor.timestamps;
+
+        // Reset all datasets
+        chart.data.datasets.forEach(function (dataset) {
+            dataset.data = [];
+            dataset.hidden = true;
+        });
+
+        // Reset chart title
+        chartTitle.textContent = "Select a pollutant to view its trend";
+
+        chart.update();
+    });
+
+    // Handle parameter selection
+    document.getElementById('parameter-select').addEventListener('change', function (e) {
+        selectedSensorIndex = document.getElementById('sensor-select').value - 1;
+        var selectedSensor = sensors[selectedSensorIndex];
+        var selectedParameters = Array.from(e.target.selectedOptions).map(option => option.value);
+
+        // Hide all datasets
+        chart.data.datasets.forEach(function (dataset) {
+            dataset.hidden = true;
+        });
+
+        // Show the selected datasets (but only update title for the first one)
+        if (selectedParameters.length > 0) {
+            selectedParameter = selectedParameters[0];
+            chartTitle.textContent = `The pollution trend for the pollutant ${formatPollutantLabel(selectedParameter)}`;
+        } else {
+            chartTitle.textContent = "Select a pollutant to view its trend";
+        }
+
+        selectedParameters.forEach(function (parameter) {
+            var dataset = chart.data.datasets.find(function (d) {
+                return d.label.toLowerCase() === parameter;
+            });
+            if (dataset) {
+                dataset.data = selectedSensor[parameter];
+                dataset.hidden = false;
+            }
+        });
+
+        chart.update();
+    });
+
+    // Handle time filtering
+    document.getElementById('filter-btn').addEventListener('click', function () {
+        if (selectedSensorIndex === null || !selectedParameter) return;
+        var selectedSensor = sensors[selectedSensorIndex];
+
+        var startTime = document.getElementById('start-time').value;
+        var endTime = document.getElementById('end-time').value;
+
+        // Filter timestamps and data
+        var filteredIndexes = selectedSensor.timestamps.map((ts, idx) => {
+            let tsDate = new Date(ts);
+            let afterStart = !startTime || tsDate >= new Date(startTime);
+            let beforeEnd = !endTime || tsDate <= new Date(endTime);
+            return afterStart && beforeEnd ? idx : null;
+        }).filter(idx => idx !== null);
+
+        // Update chart labels and data for the selected parameter
+        chart.data.labels = filteredIndexes.map(idx => selectedSensor.timestamps[idx]);
+        chart.data.datasets.forEach(function (dataset) {
+            if (dataset.label.toLowerCase() === selectedParameter) {
+                dataset.data = filteredIndexes.map(idx => selectedSensor[selectedParameter][idx]);
+                dataset.hidden = false;
+            } else {
+                dataset.data = [];
+                dataset.hidden = true;
+            }
+        });
+
+        chart.update();
+    });
+
+    // Update export button handler for CSV/Excel
+    document.getElementById('export-btn').addEventListener('click', function () {
+        if (selectedSensorIndex === null || !selectedParameter) return;
+        var selectedSensor = sensors[selectedSensorIndex];
+
+        var startTime = document.getElementById('start-time').value;
+        var endTime = document.getElementById('end-time').value;
+        var exportFormat = document.getElementById('export-format').value;
+
+        // Filter timestamps and data
+        var filteredIndexes = selectedSensor.timestamps.map((ts, idx) => {
+            let tsDate = new Date(ts);
+            let afterStart = !startTime || tsDate >= new Date(startTime);
+            let beforeEnd = !endTime || tsDate <= new Date(endTime);
+            return afterStart && beforeEnd ? idx : null;
+        }).filter(idx => idx !== null);
+
+        // Prepare data array
+        let dataArr = [["Time", formatPollutantLabel(selectedParameter)]];
+        filteredIndexes.forEach(idx => {
+            dataArr.push([selectedSensor.timestamps[idx], selectedSensor[selectedParameter][idx]]);
+        });
+
+        if (exportFormat === "csv") {
+            // CSV Export
+            let csvContent = "data:text/csv;charset=utf-8," + dataArr.map(e => e.join(",")).join("\n");
+            var encodedUri = encodeURI(csvContent);
+            var link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `${selectedSensor.name}_${selectedParameter}_data.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } else {
+            // Excel Export using SheetJS
+            var ws = XLSX.utils.aoa_to_sheet(dataArr);
+            var wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Sensor Data");
+            XLSX.writeFile(wb, `${selectedSensor.name}_${selectedParameter}_data.xlsx`);
+        }
+    });
+
+    // Handle data exporting
+    document.getElementById('export-btn').addEventListener('click', function () {
+        if (selectedSensorIndex === null || !selectedParameter) return;
+        var selectedSensor = sensors[selectedSensorIndex];
+
+        var startTime = document.getElementById('start-time').value;
+        var endTime = document.getElementById('end-time').value;
+
+        // Filter timestamps and data
+        var filteredIndexes = selectedSensor.timestamps.map((ts, idx) => {
+            let tsDate = new Date(ts);
+            let afterStart = !startTime || tsDate >= new Date(startTime);
+            let beforeEnd = !endTime || tsDate <= new Date(endTime);
+            return afterStart && beforeEnd ? idx : null;
+        }).filter(idx => idx !== null);
+
+        // Prepare CSV content
+        let csvContent = "data:text/csv;charset=utf-8,Time," + formatPollutantLabel(selectedParameter) + "\n";
+        filteredIndexes.forEach(idx => {
+            csvContent += `"${selectedSensor.timestamps[idx]}",${selectedSensor[selectedParameter][idx]}\n`;
+        });
+
+        // Download CSV
+        var encodedUri = encodeURI(csvContent);
+        var link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `${selectedSensor.name}_${selectedParameter}_data.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
+</script>
+{% endblock %}
+
+

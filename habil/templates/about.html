@@ -1,0 +1,166 @@
+<!--{% extends 'base.html' %} -->
+
+{% block content %}
+<div class="container-fluid" style="margin-top: 70px;"> <!-- Add margin to push content below the navbar -->
+    <div class="row">
+        <!-- Map Column -->
+        <div class="col-12 p-0">
+            <div id="sensor-map" style="height: 100vh; width: 100vw;"></div> <!-- Ensure the map has a fixed height and width -->
+        </div>
+    </div>
+</div>
+
+<!-- Leaflet CSS & JS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize the map and set the default view to Dar es Salaam
+        var map = L.map('sensor-map').setView([-6.7924, 39.2083], 11); // Centered on Dar es Salaam with zoom level 11
+
+        // Use OpenStreetMap tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        // Lock the map view to Dar es Salaam's bounds
+        var darBounds = [
+            [-7.0, 38.8], // Southwest corner (latitude, longitude)
+            [-6.5, 39.6]  // Northeast corner (latitude, longitude)
+        ];
+        map.setMaxBounds(darBounds);
+        map.fitBounds(darBounds); // Ensure the map starts zoomed to Dar es Salaam
+
+        // Function to determine AQI color based on value
+        function getAQIColor(aqi) {
+            if (aqi <= 50) return 'green';       // Good
+            if (aqi <= 100) return 'yellow';     // Moderate
+            if (aqi <= 150) return 'orange';     // Unhealthy for Sensitive Groups
+            if (aqi <= 200) return 'red';        // Unhealthy
+            if (aqi <= 300) return 'purple';     // Very Unhealthy
+            return 'maroon';                     // Hazardous
+        }
+
+        // Add markers for all sensors
+        {% for data in sensor_data %}
+        var aqiValue = {{ data.latest_readings.pm2_5|default:"0" }};
+        var aqiColor = getAQIColor(aqiValue);
+
+        // Create a custom divIcon for the marker
+        var customIcon = L.divIcon({
+            className: 'custom-icon',
+            html: `
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <i class="bi bi-geo-alt-fill" style="color:#1976d2; font-size: 2rem;"></i>
+                    <span style="font-weight:bold; background: #fff; border-radius: 4px; padding: 2px 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.12); border: 1px solid #1976d2;">
+                        {{ data.sensor.name }}
+                    </span>
+                    <span style="margin-left:8px; color:${aqiColor}; font-weight:bold;">AQI: ${aqiValue}</span>
+                </div>
+            `,
+            iconSize: [180, 40],
+            iconAnchor: [16, 40]
+        });
+
+        // Add the marker to the map
+        var marker = L.marker([{{ data.sensor.latitude }}, {{ data.sensor.longitude }}], {icon: customIcon}).addTo(map);
+
+        // Remove the always-visible label above the marker (no bindTooltip needed)
+
+        // Add popup with sensor details
+        marker.bindPopup(`
+            <div class="d-flex justify-content-between" style="gap: 10px;">
+                <!-- Real-Time Sensor Data Table -->
+                <table class="table table-bordered table-sm" style="background-color: #d4edda; width: 48%;">
+                    <thead>
+                        <tr>
+                            <th colspan="2" class="text-center">Current Air Condition</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Temperature</td><td>{{ data.latest_readings.temperature|default:"N/A" }}</td></tr>
+                        <tr><td>Humidity</td><td>{{ data.latest_readings.humidity|default:"N/A" }}</td></tr>
+                        <tr><td>PM2.5</td><td>{{ data.latest_readings.pm2_5|default:"N/A" }}</td></tr>
+                        <tr><td>PM10</td><td>{{ data.latest_readings.pm10|default:"N/A" }}</td></tr>
+                        <tr><td>NH3</td><td>{{ data.latest_readings.nh3|default:"N/A" }}</td></tr>
+                        <tr><td>CH4</td><td>{{ data.latest_readings.ch4|default:"N/A" }}</td></tr>
+                        <tr><td>CO</td><td>{{ data.latest_readings.co|default:"N/A" }}</td></tr>
+                    </tbody>
+                </table>
+
+                <!-- Predicted Values Table -->
+                <table class="table table-bordered table-sm" style="background-color: #fff3cd; width: 48%;">
+                    <thead>
+                        <tr>
+                            <th colspan="2" class="text-center">Air Condition in Next 6 Hrs.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Temperature</td><td>{{ data.predicted_values.temperature|default:"N/A" }}</td></tr>
+                        <tr><td>Humidity</td><td>{{ data.predicted_values.humidity|default:"N/A" }}</td></tr>
+                        <tr><td>PM2.5</td><td>{{ data.predicted_values.pm2_5|default:"N/A" }}</td></tr>
+                        <tr><td>PM10</td><td>{{ data.predicted_values.pm10|default:"N/A" }}</td></tr>
+                        <tr><td>NH3</td><td>{{ data.predicted_values.nh3|default:"N/A" }}</td></tr>
+                        <tr><td>CH4</td><td>{{ data.predicted_values.ch4|default:"N/A" }}</td></tr>
+                        <tr><td>CO</td><td>{{ data.predicted_values.co|default:"N/A" }}</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        `);
+        {% endfor %}
+    });
+</script>
+
+<style>
+    #sensor-map {
+        height: 100vh; /* Set a fixed height for the map */
+        width: 100vw;   /* Ensure the map takes full width */
+    }
+
+    .custom-icon div {
+        display: inline-block;
+    }
+</style>
+
+<div class="mb-3">
+    <div class="card p-2">
+        <div class="d-flex flex-wrap gap-4 justify-content-center align-items-center">
+            {% if sensor_data %}
+                {% with latest=sensor_data.0.latest_readings %}
+                    <span>
+                        <i class="bi bi-thermometer-half"></i>
+                        <b>Temp:</b>
+                        <span>
+                            {{ latest.temperature|default:"N/A" }} °C
+                        </span>
+                    </span>
+                    <span>
+                        <i class="bi bi-droplet-half"></i>
+                        <b>Humidity:</b>
+                        <span>
+                            {{ latest.humidity|default:"N/A" }} %
+                        </span>
+                    </span>
+                    <span>
+                        <i class="bi bi-battery-half"></i>
+                        <b>Battery:</b>
+                        <span>
+                            {{ latest.battery_level|default:"N/A" }} %
+                        </span>
+                    </span>
+                    <span>
+                        <i class="bi bi-reception-4"></i>
+                        <b>Signal:</b>
+                        <span>
+                            {{ latest.signal_strength|default:"N/A" }} dBm
+                        </span>
+                    </span>
+                {% endwith %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+{% endblock %}

@@ -1,0 +1,94 @@
+<!-- habil/templates/habil/sensor_detail.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Map Column -->
+        <div class="col-md-6 p-0">
+            <div id="sensor-map"></div>
+        </div>
+
+        <!-- Details Column -->
+        <div class="col-md-6">
+            <div class="p-4">
+                <h3>{{ sensor.name }}</h3>
+                <p><strong>Location:</strong> {{ sensor.location }}</p>
+                <p><strong>Installation Date:</strong> {{ sensor.installation_date }}</p>
+                <p><strong>Latitude:</strong> {{ sensor.latitude }}</p>
+                <p><strong>Longitude:</strong> {{ sensor.longitude }}</p>
+                <hr>
+                <h4>Latest Pollution Metrics</h4>
+                {% if latest_raw_data %}
+                <ul>
+                    <li><strong>Temperature:</strong> {{ latest_raw_data.temperature }} °C</li>
+                    <li><strong>Humidity:</strong> {{ latest_raw_data.humidity }} %</li>
+                    <li><strong>PM2.5:</strong> {{ latest_raw_data.pm2_5 }} µg/m³</li>
+                    <li><strong>PM10:</strong> {{ latest_raw_data.pm10 }} µg/m³</li>
+                    <li><strong>NH3:</strong> {{ latest_raw_data.nh3 }} ppm</li>
+                    <li><strong>CH4:</strong> {{ latest_raw_data.ch4 }} ppm</li>
+                    <li><strong>CO:</strong> {{ latest_raw_data.co }} ppm</li>
+                </ul>
+                {% else %}
+                <p>No pollution data available.</p>
+                {% endif %}
+                <hr>
+                <h4>Latest AQI Data</h4>
+                {% if latest_aqi_data %}
+                <p><strong>AQI Value:</strong> {{ latest_aqi_data.aqi_value }}</p>
+                <p><strong>AQI Category:</strong> {{ latest_aqi_data.aqi_category }}</p>
+                {% else %}
+                <p>No AQI data available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Leaflet CSS & JS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+<style>
+    #sensor-map {
+        height: calc(100vh - 56px); /* Adjust based on your navbar height */
+        width: 100%;
+        margin-top: 56px;
+    }
+
+    .sensor-sidebar {
+        height: calc(100vh - 56px);
+        overflow-y: auto;
+        background: #f8f9fa;
+        border-left: 1px solid #dee2e6;
+        margin-top: 56px;
+    }
+
+    .aqi-good { background-color: #00e400; color: white; }
+    .aqi-moderate { background-color: #ffff00; }
+    .aqi-unhealthy { background-color: #ff7e00; color: white; }
+    .aqi-very-unhealthy { background-color: #ff0000; color: white; }
+    .aqi-hazardous { background-color: #8f3f97; color: white; }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize the map and set the default view to the sensor's location
+        var map = L.map('sensor-map').setView([{{ sensor.latitude }}, {{ sensor.longitude }}], 13);
+
+       
+        // Use OpenStreetMap tile layer
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap contributors & CartoDB',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(map);
+
+        // Add a marker for the sensor's location
+        L.marker([{{ sensor.latitude }}, {{ sensor.longitude }}])
+            .addTo(map)
+            .bindPopup(`<b>{{ sensor.name }}</b><br>{{ sensor.location }}`)
+            .openPopup();
+    });
+</script>
+{% endblock %}

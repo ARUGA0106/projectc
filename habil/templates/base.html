@@ -1,0 +1,189 @@
+<!-- Load static files tag -->
+    {% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>TanAir | Dar es Salaam Air Pollution Monitoring and Prediction</title>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="" name="keywords">
+    <meta content="" name="description">
+
+    <!-- Load static files tag -->
+    {% load static %}
+
+    <!-- Google Web Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600&family=Roboto&display=swap" rel="stylesheet">
+
+    <!-- Icon Font Stylesheet -->
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css"/>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Libraries Stylesheet -->
+    <link href="{% static 'lib/owlcarousel/assets/owl.carousel.min.css' %}" rel="stylesheet">
+    <link href="{% static 'lib/lightbox/css/lightbox.min.css' %}" rel="stylesheet">
+
+    <!-- Customized Bootstrap Stylesheet -->
+    <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
+
+    <!-- Template Stylesheet -->
+    <link href="{% static 'css/style.css' %}" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body.theme-dark {
+        background: #181818 !important;
+        color: #f5f5f5 !important;
+      }
+      body.theme-dark .container-fluid,
+      body.theme-dark .container {
+        background: #181818 !important;
+        color: #f5f5f5 !important;
+      }
+      body.theme-dark .card {
+        background: #232323 !important;
+        color: #f5f5f5 !important;
+        border-color: #333 !important;
+      }
+      body.theme-dark .btn, body.theme-dark .badge {
+        color: #fff !important;
+        background: #333 !important;
+        border-color: #444 !important;
+      }
+      body.theme-dark .navbar, body.theme-dark .sidebar {
+        background: #222 !important;
+      }
+      body.theme-light {
+        background: #f5f6fa !important;
+        color: #222 !important;
+      }
+      body.theme-light .container-fluid,
+      body.theme-light .container {
+        background: #f5f6fa !important;
+        color: #222 !important;
+      }
+      body.theme-light .card {
+        background: #fff !important;
+        color: #222 !important;
+        border-color: #eee !important;
+      }
+      body.theme-light .btn, body.theme-light .badge {
+        color: #222 !important;
+        background: #e0e0e0 !important;
+        border-color: #ccc !important;
+      }
+      body.theme-light .navbar, body.theme-light .sidebar {
+        background: #fff !important;
+      }
+    </style>
+</head>
+
+<body>
+
+    <!-- Spinner Start -->
+    <div id="spinner" class="show w-100 vh-100 bg-white position-fixed translate-middle top-50 start-50 d-flex align-items-center justify-content-center">
+        <div class="spinner-grow text-primary" role="status"></div>
+    </div>
+    <!-- Spinner End -->
+
+    <!-- Navbar Start -->
+    <div class="container-fluid fixed-top px-0">
+        <div class="container px-0">
+            <div class="topbar">
+                <div class="row align-items-center justify-content-center">
+                    <div class="col-md-8">
+                        <div class="topbar-info d-flex flex-wrap">
+                            <a href="#" class="text-light me-4"><i class="fas fa-envelope text-white me-2"></i>support@tanair.com</a>
+                            <a href="#" class="text-light"><i class="fas fa-phone-alt text-white me-2"></i>+255686969536</a>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="topbar-icon d-flex align-items-center justify-content-end">
+                            <a href="#" class="btn-square text-white me-2"><i class="fab fa-facebook-f"></i></a>
+                            <a href="#" class="btn-square text-white me-2"><i class="fab fa-twitter"></i></a>
+                            <a href="#" class="btn-square text-white me-2"><i class="fab fa-instagram"></i></a>
+                            <a href="#" class="btn-square text-white me-2"><i class="fab fa-pinterest"></i></a>
+                            <a href="#" class="btn-square text-white me-0"><i class="fab fa-linkedin-in"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <nav class="navbar navbar-light bg-light navbar-expand-xl">
+                <a href="{% url 'habil:home' %}" class="navbar-brand ms-3">
+                    <h1 class="text-primary display-5">Tanair</h1>
+                </a>
+                <button class="navbar-toggler py-2 px-3 me-3" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse">
+                    <span class="fa fa-bars text-primary"></span>
+                </button>
+                <div class="collapssse navbar-collapse bg-light" id="navbarCollapse">
+                    <div class="navbar-nav ms-auto">
+                        <a href="{% url 'habil:home' %}" class="nav-item nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}">Home</a>
+                        <a href="{% url 'habil:about' %}" class="nav-item nav-link">Map</a>
+                        {% if user.is_authenticated %}
+                            <a class="nav-link" href="{% url 'habil:dashboard' %}">Dashboard</a>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex align-items-center flex-nowrap pt-xl-0" style="margin-left: 15px;">
+                        {% if user.is_authenticated %}
+                            <span class="me-2 text-primary">
+                                <i class="fas fa-user-circle fa-lg"></i> {{ user.username }}
+                            </span>
+                            <form action="{% url 'habil:logout' %}" method="post" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline-primary ms-2">Logout</button>
+                            </form>
+                        {% else %}
+                            <a href="{% url 'habil:login' %}" class="btn btn-primary ms-2">Login</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+    <!-- Navbar End -->
+
+    <!-- Content Block -->
+    {% block content %}
+    <!-- Content from child templates will be inserted here -->
+    {% endblock %}
+
+
+
+    <!-- Back to Top -->
+    <a href="#" class="btn btn-primary btn-primary-outline-0 btn-md-square back-to-top"><i class="fa fa-arrow-up"></i></a>
+
+    <!-- JavaScript Libraries -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{% static 'lib/easing/easing.min.js' %}"></script>
+    <script src="{% static 'lib/waypoints/waypoints.min.js' %}"></script>
+    <script src="{% static 'lib/counterup/counterup.min.js' %}"></script>
+    <script src="{% static 'lib/owlcarousel/owl.carousel.min.js' %}"></script>
+    <script src="{% static 'lib/lightbox/js/lightbox.min.js' %}"></script>
+
+    <!-- Template Javascript -->
+    <script src="{% static 'js/main.js' %}"></script>
+    <script>
+      function toggleTheme() {
+        const body = document.body;
+        if (body.classList.contains('theme-dark')) {
+          body.classList.remove('theme-dark');
+          body.classList.add('theme-light');
+          localStorage.setItem('theme', 'light');
+        } else {
+          body.classList.remove('theme-light');
+          body.classList.add('theme-dark');
+          localStorage.setItem('theme', 'dark');
+        }
+      }
+      // On page load, set theme from localStorage
+      document.addEventListener('DOMContentLoaded', function() {
+        const theme = localStorage.getItem('theme') || 'light';
+        document.body.classList.add('theme-' + theme);
+      });
+    </script>
+</body>
+</html>

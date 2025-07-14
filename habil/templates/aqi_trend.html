@@ -1,0 +1,263 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid py-4" style="background-color:#f8f9fa; margin-top: 70px;">
+  <div class="row">
+    <!-- Sidebar FIRST for proper stacking -->
+    <div class="col-md-3" style="z-index:2; background:#fff;">
+      <form id="aqi-trend-form">
+        <div class="mb-3">
+          <label for="sensor" class="form-label">Sensor</label>
+          <select id="sensor" class="form-select" required>
+            <option value="">Select Sensor</option>
+            {% for sensor in sensors %}
+            <option value="{{ sensor.id }}">{{ sensor.name }} ({{ sensor.location }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label for="pollutant" class="form-label">Pollutant(s)</label>
+          <select id="pollutant" class="form-select" multiple required>
+            {% for p in pollutants %}
+            <option value="{{ p }}">{{ p|upper }}</option>
+            {% endfor %}
+          </select>
+          <small class="text-muted">Ctrl/Cmd+Click for multiple</small>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Date & Time Range</label>
+          <div class="d-flex gap-2">
+            <input type="datetime-local" id="start_datetime" class="form-control" />
+            <input type="datetime-local" id="end_datetime" class="form-control" />
+          </div>
+        </div>
+        <div class="mb-3 d-flex gap-2 justify-content-center">
+          <i class="bi bi-calendar2-week" title="Custom Range"></i>
+          <i class="bi bi-calendar2-day" title="Day"></i>
+          <i class="bi bi-calendar2-month" title="Month"></i>
+          <i class="bi bi-calendar2" title="All"></i>
+        </div>
+      </form>
+      <div id="mean-metrics" class="mt-4"></div>
+    </div>
+    <!-- Main Graph -->
+    <div class="col-md-9">
+      <!-- Dynamic Graph Title -->
+      <h5 id="aqi-graph-title" class="text-center mb-3" style="font-weight:bold;"></h5>
+      <canvas id="aqiTrendChart" height="100"></canvas>
+      <div id="breakpoints-table" class="table-responsive mt-4"></div>
+    </div>
+  </div>
+</div>
+<!-- Bootstrap Icons CDN -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const BREAKPOINTS = {
+    pm2_5: [
+        [0.0, 12.0, 0, 50, "Good", "#00e400", "µg/m³", "US EPA"],
+        [12.1, 35.4, 51, 100, "Moderate", "#ffff00", "µg/m³", "US EPA"],
+        [35.5, 55.4, 101, 150, "Unhealthy for Sensitive Groups", "#ff7e00", "µg/m³", "US EPA"],
+        [55.5, 150.4, 151, 200, "Unhealthy", "#ff0000", "µg/m³", "US EPA"],
+        [150.5, 250.4, 201, 300, "Very Unhealthy", "#8f3f97", "µg/m³", "US EPA"],
+        [250.5, 500.4, 301, 500, "Hazardous", "#7e0023", "µg/m³", "US EPA"]
+    ],
+    pm10: [
+        [0, 54, 0, 50, "Good", "#00e400", "µg/m³", "US EPA"],
+        [55, 154, 51, 100, "Moderate", "#ffff00", "µg/m³", "US EPA"],
+        [155, 254, 101, 150, "Unhealthy for Sensitive Groups", "#ff7e00", "µg/m³", "US EPA"],
+        [255, 354, 151, 200, "Unhealthy", "#ff0000", "µg/m³", "US EPA"],
+        [355, 424, 201, 300, "Very Unhealthy", "#8f3f97", "µg/m³", "US EPA"],
+        [425, 604, 301, 500, "Hazardous", "#7e0023", "µg/m³", "US EPA"]
+    ],
+    co: [
+        [0.0, 4.4, 0, 50, "Good", "#00e400", "ppm", "US EPA"],
+        [4.5, 9.4, 51, 100, "Moderate", "#ffff00", "ppm", "US EPA"],
+        [9.5, 12.4, 101, 150, "Unhealthy for Sensitive Groups", "#ff7e00", "ppm", "US EPA"],
+        [12.5, 15.4, 151, 200, "Unhealthy", "#ff0000", "ppm", "US EPA"],
+        [15.5, 30.4, 201, 300, "Very Unhealthy", "#8f3f97", "ppm", "US EPA"],
+        [30.5, 50.4, 301, 500, "Hazardous", "#7e0023", "ppm", "US EPA"]
+    ],
+    nh3: [
+        [0, 200, 0, 50, "Good", "#00e400", "µg/m³", "CPCB (India)"],
+        [201, 400, 51, 100, "Satisfactory", "#ffff00", "µg/m³", "CPCB (India)"],
+        [401, 800, 101, 200, "Moderately Polluted", "#ff7e00", "µg/m³", "CPCB (India)"],
+        [801, 1200, 201, 300, "Poor", "#ff0000", "µg/m³", "CPCB (India)"],
+        [1201, 1800, 301, 400, "Very Poor", "#8f3f97", "µg/m³", "CPCB (India)"],
+        [1801, 99999, 401, 500, "Severe", "#7e0023", "µg/m³", "CPCB (India)"]
+    ]
+};
+
+function renderBreakpointsTable(pollutant) {
+    const bp = BREAKPOINTS[pollutant];
+    if (!bp) {
+        document.getElementById('breakpoints-table').innerHTML = '';
+        return;
+    }
+    let rows = '';
+    bp.forEach(b => {
+        rows += `<tr style="background-color:${b[5]}">
+            <td>${b[2]}–${b[3]}</td>
+            <td>${b[0]}–${b[1]} ${b[6]}</td>
+            <td>${b[4]}</td>
+            <td>${b[7]}</td>
+        </tr>`;
+    });
+    document.getElementById('breakpoints-table').innerHTML = `
+        <h5 class="mb-2">Breakpoints for ${pollutant.toUpperCase()}</h5>
+        <table class="table table-bordered table-sm align-middle text-center">
+            <thead class="table-dark">
+                <tr>
+                    <th>AQI Range</th>
+                    <th>Concentration Range</th>
+                    <th>Category</th>
+                    <th>Reference</th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>
+    `;
+}
+
+function renderMeanMetrics(metrics) {
+    if (!metrics) {
+        document.getElementById('mean-metrics').innerHTML = '';
+        return;
+    }
+    // Color logic
+    const tempColor = metrics.temperature >= 30 ? "#ffc107" : "#0dcaf0";
+    const humidityColor = "#0d6efd";
+    const batteryColor = metrics.battery_level >= 60 ? "#198754" : (metrics.battery_level >= 30 ? "#ffc107" : "#dc3545");
+    const signalColor = metrics.signal_strength >= -70 ? "#198754" : (metrics.signal_strength >= -90 ? "#ffc107" : "#dc3545");
+
+    document.getElementById('mean-metrics').innerHTML = `
+      <div class="card p-3">
+        <div class="d-flex flex-wrap gap-3 justify-content-center">
+          <span><i class="bi bi-thermometer-half" style="color:${tempColor}"></i> <b>Mean Temp:</b> ${metrics.temperature ?? 'N/A'} °C</span>
+          <span><i class="bi bi-droplet-half" style="color:${humidityColor}"></i> <b>Mean Humidity:</b> ${metrics.humidity ?? 'N/A'} %</span>
+          <span><i class="bi bi-battery-half" style="color:${batteryColor}"></i> <b>Mean Battery:</b> ${metrics.battery_level ?? 'N/A'} %</span>
+          <span><i class="bi bi-reception-4" style="color:${signalColor}"></i> <b>Mean Signal:</b> ${metrics.signal_strength ?? 'N/A'} dBm</span>
+        </div>
+      </div>
+    `;
+}
+
+function renderExtraParams(params) {
+    if (!params) {
+        document.getElementById('extra-params').innerHTML = '';
+        return;
+    }
+    document.getElementById('extra-params').innerHTML = `
+      <div class="card p-3">
+        <div class="d-flex flex-wrap gap-3 justify-content-center">
+          <span><i class="bi bi-thermometer-half"></i> <b>Temp:</b> ${params.temperature ?? 'N/A'} °C</span>
+          <span><i class="bi bi-droplet-half"></i> <b>Humidity:</b> ${params.humidity ?? 'N/A'} %</span>
+          <span><i class="bi bi-battery-half"></i> <b>Battery:</b> ${params.battery_level ?? 'N/A'} %</span>
+          <span><i class="bi bi-reception-4"></i> <b>Signal:</b> ${params.signal_strength ?? 'N/A'} dBm</span>
+        </div>
+      </div>
+    `;
+}
+
+const COLORS = [
+    "#007bff", "#ff7e00", "#00e400", "#8f3f97", "#ff0000", "#7e0023", "#ffc107", "#17a2b8"
+];
+
+function getSelectedOptions(select) {
+    return Array.from(select.selectedOptions).map(opt => opt.value);
+}
+
+let chart;
+function updateTrend() {
+    const sensorSelect = document.getElementById('sensor');
+    const pollutantSelect = document.getElementById('pollutant');
+    const sensorId = sensorSelect.value;
+    const pollutants = getSelectedOptions(pollutantSelect);
+    const startDatetime = document.getElementById('start_datetime').value;
+    const endDatetime = document.getElementById('end_datetime').value;
+
+    // --- Dynamic Title Logic ---
+    let graphTitle = document.getElementById('aqi-graph-title');
+    let sensorName = sensorSelect.options[sensorSelect.selectedIndex]?.text?.split(' (')[0] || '';
+    if (!sensorId || pollutants.length === 0) {
+        graphTitle.textContent = "";
+    } else if (pollutants.length === 1) {
+        graphTitle.textContent = `The AQI trend for ${pollutants[0].toUpperCase()} at ${sensorName}`;
+    } else {
+        graphTitle.textContent = `The AQI trend for ${pollutants.map(p=>p.toUpperCase()).join(", ")} at ${sensorName}`;
+    }
+    // --- End Dynamic Title Logic ---
+
+    if (!sensorId || pollutants.length === 0) return;
+
+    const params = new URLSearchParams();
+    params.append('sensor_id', sensorId);
+    pollutants.forEach(p => params.append('pollutants[]', p));
+    if (startDatetime) params.append('start_datetime', startDatetime);
+    if (endDatetime) params.append('end_datetime', endDatetime);
+
+    fetch(`/aqi_trend_data/?${params.toString()}`)
+        .then(resp => resp.json())
+        .then(data => {
+            renderBreakpointsTable(pollutants[0]);
+            if (chart) chart.destroy();
+
+            let datasets = [];
+            pollutants.forEach((pollutant, idx) => {
+                if (!data[pollutant]) return;
+                datasets.push({
+                    label: pollutant.toUpperCase() + " Concentration",
+                    data: data[pollutant].concentrations,
+                    borderColor: COLORS[idx % COLORS.length],
+                    backgroundColor: "rgba(0,0,0,0)",
+                    borderWidth: 1.5,
+                    pointRadius: 3,
+                    pointBackgroundColor: data[pollutant].colors,
+                    tension: 0.3,
+                    fill: false
+                });
+            });
+
+            chart = new Chart(document.getElementById('aqiTrendChart').getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: data[pollutants[0]] ? data[pollutants[0]].timestamps : [],
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    animation: {
+                        duration: 2000,
+                        easing: 'easeInOutQuart'
+                    },
+                    plugins: {
+                        legend: { display: true },
+                        tooltip: { enabled: true }
+                    },
+                    elements: {
+                        line: { borderWidth: 1.5 },
+                        point: { radius: 3 }
+                    },
+                    scales: {
+                        y: {
+                            title: { display: true, text: 'Concentration' },
+                            grid: { color: '#eee' }
+                        },
+                        x: {
+                            title: { display: true, text: 'Timestamp' },
+                            grid: { color: '#eee' }
+                        }
+                    },
+                    backgroundColor: "#f8f9fa"
+                }
+            });
+
+            renderMeanMetrics(data.mean_metrics);
+        });
+}
+
+// Attach event listeners to all inputs for auto-update
+['sensor', 'pollutant', 'start_datetime', 'end_datetime'].forEach(id => {
+    document.getElementById(id).addEventListener('change', updateTrend);
+});
+</script>
+{% endblock %}
